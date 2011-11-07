@@ -50,4 +50,9 @@ UIKIT_EXTERN @interface BugSenseCrashController : NSObject {
                                                 userDictionary:(NSDictionary *)userDictionary
                                                sendImmediately:(BOOL)immediately;
 
++ (BugSenseCrashController *) sharedInstanceWithBugSenseAPIKey:(NSString *)bugSenseAPIKey
+                                                userDictionary:(NSDictionary *)userDictionary
+                                               sendImmediately:(BOOL)immediately
+                                            useSecureReporting:(BOOL)useSecureReporting;
+
 @end

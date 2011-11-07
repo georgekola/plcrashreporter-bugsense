@@ -46,8 +46,9 @@
 #include <dlfcn.h>
 
 
-#define BUGSENSE_REPORTING_SERVICE_URL @"http://www.bugsense.com/api/errors"
-#define BUGSENSE_HEADER                @"X-BugSense-Api-Key"
+#define BUGSENSE_REPORTING_SERVICE_URL        @"http://www.bugsense.com/api/errors"
+#define BUGSENSE_REPORTING_SERVICE_URL_SECURE @"https://www.bugsense.com/api/errors"
+#define BUGSENSE_HEADER                       @"X-BugSense-Api-Key"
 
 
 
@@ -65,7 +66,8 @@ void post_crash_callback(siginfo_t *info, ucontext_t *uap, void *context);
 - (NSString *) ipAddress;
 - (id) initWithAPIKey:(NSString *)bugSenseAPIKey 
        userDictionary:(NSDictionary *)userDictionary 
-      sendImmediately:(BOOL)immediately;
+      sendImmediately:(BOOL)immediately
+   useSecureReporting:(BOOL)useSecureReporting;
 - (void) initiateReportingProcess;
 - (void) processCrashReport;
 - (NSData *) JSONDataFromCrashReport:(PLCrashReport *)report;
@@ -161,7 +163,8 @@ void post_crash_callback(siginfo_t *info, ucontext_t *uap, void *context) {
     if (!sharedCrashController) {
         sharedCrashController = [[BugSenseCrashController alloc] initWithAPIKey:bugSenseAPIKey
                                                                  userDictionary:nil
-                                                                sendImmediately:NO];
+                                                                sendImmediately:NO
+                                                             useSecureReporting:NO];
     }
 
     [sharedCrashController initiateReportingProcess];
@@ -176,7 +179,8 @@ void post_crash_callback(siginfo_t *info, ucontext_t *uap, void *context) {
     if (!sharedCrashController) {
         sharedCrashController = [[BugSenseCrashController alloc] initWithAPIKey:bugSenseAPIKey
                                                                  userDictionary:userDictionary
-                                                                sendImmediately:NO];
+                                                                sendImmediately:NO
+                                                             useSecureReporting:NO];
 	}
     
     [sharedCrashController initiateReportingProcess];
@@ -192,7 +196,8 @@ void post_crash_callback(siginfo_t *info, ucontext_t *uap, void *context) {
     if (!sharedCrashController) {
         sharedCrashController = [[BugSenseCrashController alloc] initWithAPIKey:bugSenseAPIKey
                                                                  userDictionary:userDictionary
-                                                                sendImmediately:immediately];
+                                                                sendImmediately:immediately
+                                                             useSecureReporting:NO];
     }
     
     [sharedCrashController initiateReportingProcess];
@@ -201,11 +206,30 @@ void post_crash_callback(siginfo_t *info, ucontext_t *uap, void *context) {
 }
 
 
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
++ (BugSenseCrashController *) sharedInstanceWithBugSenseAPIKey:(NSString *)bugSenseAPIKey
+                                                userDictionary:(NSDictionary *)userDictionary
+                                               sendImmediately:(BOOL)immediately
+                                            useSecureReporting:(BOOL)useSecureReporting {
+  if (!sharedCrashController) {
+    sharedCrashController = [[BugSenseCrashController alloc] initWithAPIKey:bugSenseAPIKey
+                                                             userDictionary:userDictionary
+                                                            sendImmediately:immediately
+                                                         useSecureReporting:useSecureReporting];
+  }
+
+  [sharedCrashController initiateReportingProcess];
+
+  return sharedCrashController;
+}
+
+
 #pragma mark - Initializer
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 - (id) initWithAPIKey:(NSString *)bugSenseAPIKey 
        userDictionary:(NSDictionary *)userDictionary 
-      sendImmediately:(BOOL)immediately {
+      sendImmediately:(BOOL)immediately
+   useSecureReporting:(BOOL)useSecureReporting {
     if ((self = [super init])) {
         _operationCompleted = NO;
         
@@ -217,6 +241,12 @@ void post_crash_callback(siginfo_t *info, ucontext_t *uap, void *context) {
             _userDictionary = [userDictionary retain];
         } else {
             _userDictionary = nil;
+        }
+
+        if (useSecureReporting) {
+            reportingServiceUrl = [NSURL URLWithString:BUGSENSE_REPORTING_SERVICE_URL_SECURE];
+        } else {
+            reportingServiceUrl = [NSURL URLWithString:BUGSENSE_REPORTING_SERVICE_URL];
         }
         
         _immediately = immediately;
@@ -536,8 +566,7 @@ void post_crash_callback(siginfo_t *info, ucontext_t *uap, void *context) {
         NSLog(@"BugSense --> No JSON data was given to post.");
         return NO;
     } else {
-        NSURL *bugsenseURL = [NSURL URLWithString:BUGSENSE_REPORTING_SERVICE_URL];
-        NSMutableURLRequest *bugsenseRequest = [[[NSMutableURLRequest alloc] initWithURL:bugsenseURL 
+        NSMutableURLRequest *bugsenseRequest = [[[NSMutableURLRequest alloc] initWithURL:self.reportingServiceUrl
             cachePolicy:NSURLRequestUseProtocolCachePolicy timeoutInterval:15.0f] autorelease];
         [bugsenseRequest setHTTPMethod:@"POST"];
         [bugsenseRequest setValue:_APIKey forHTTPHeaderField:BUGSENSE_HEADER];
