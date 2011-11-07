@@ -52,6 +52,12 @@
 
 
 
+@interface BugSenseCrashController ()
+
+@property (nonatomic, retain) NSURL *reportingServiceUrl;
+
+@end
+
 @interface BugSenseCrashController (Private)
 
 void post_crash_callback(siginfo_t *info, ucontext_t *uap, void *context);
@@ -75,6 +81,8 @@ void post_crash_callback(siginfo_t *info, ucontext_t *uap, void *context);
 @implementation BugSenseCrashController
 
 static BugSenseCrashController *sharedCrashController = nil;
+
+@synthesize reportingServiceUrl;
 
 #pragma mark - Crash callback function
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -591,6 +599,15 @@ void post_crash_callback(siginfo_t *info, ucontext_t *uap, void *context) {
         
         _operationCompleted = YES;
     }
+}
+
+
+#pragma mark - Dealloc
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+- (void)dealloc {
+  self.reportingServiceUrl = nil;
+
+  [super dealloc];
 }
 
 @end
